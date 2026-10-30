@@ -133,8 +133,6 @@
           }
         }
 
-        console.log(scheme);
-
         const palette = [
           scheme["base00"],
           scheme["base08"],
@@ -153,8 +151,6 @@
           scheme["base0c"],
           scheme["base07"],
         ];
-
-        console.log(palette);
 
         const base8 = palette.map(hexToLab);
         const bg = base8[0];
@@ -219,8 +215,6 @@ white = '0x${palette[15]}
         for (let i = 16; i < palette.length; i++) {
           configOutput += `\n[[colors.indexed_colors]]\nindex = ${i}\ncolor = "0x${palette[i]}"`;
         }
-
-        console.log(configOutput);
 
         navigator.clipboard
           .writeText(configOutput)
