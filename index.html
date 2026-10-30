@@ -209,11 +209,11 @@ yellow = '0x${palette[11]}'
 blue = '0x${palette[12]}'
 magenta = '0x${palette[13]}'
 cyan = '0x${palette[14]}'
-white = '0x${palette[15]}
+white = '0x${palette[15]}'
 `;
 
         for (let i = 16; i < palette.length; i++) {
-          configOutput += `\n[[colors.indexed_colors]]\nindex = ${i}\ncolor = "0x${palette[i]}"`;
+          configOutput += `\n[[colors.indexed_colors]]\nindex = ${i}\ncolor = '0x${palette[i]}'`;
         }
 
         navigator.clipboard
