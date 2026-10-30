@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>base16-alacritty</title>
+
+    <style>
+      body {
+        background: #181818;
+        color: #d8d8d8;
+        font-family: system-ui, sans-serif;
+        max-width: 70ch;
+        padding: 2ch;
+        margin: auto;
+        line-height: 1.75;
+      }
+      a {
+        color: #9fd5fc;
+      }
+      code {
+      }
+      textarea {
+        background: #2b2e3b;
+        border: 1px solid #474a58;
+        border-radius: 3px;
+        color: #cacedf;
+        font: monospace;
+        padding: 1px 5px;
+        resize: vertical;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>base16-alacritty</h1>
+    <p>
+      A
+      <a href="https://github.com/jake-stewart/color256">256 color</a> palette
+      generator for Alacritty.
+    </p>
+    <textarea
+      id="scheme"
+      rows="19"
+      placeholder='# paste "YAML" scheme here'
+    ></textarea>
+    <button id="copy">Generate & Copy</button>
+
+    <script>
+      const ta = document.querySelector("#scheme");
+
+      const hexToLab = (hex) => {
+        const [r, g, b] = hex
+          .match(/../g)
+          .map((h) => parseInt(h, 16) / 255)
+          .map((c) => {
+            if (c <= 0.04045) {
+              return c / 12.92;
+            } else {
+              return ((c + 0.055) / 1.055) ** 2.4;
+            }
+          });
+
+        const [x, y, z] = [
+          (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047,
+          (r * 0.2126 + g * 0.7152 + b * 0.0722) / 1.0,
+          (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883,
+        ].map((t) => {
+          if (t > 0.008856) {
+            return t ** (1 / 3);
+          } else {
+            return 7.787 * t + 16 / 116;
+          }
+        });
+
+        return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+      };
+
+      const labToHex = ([l, a, b]) => {
+        const fy = (l + 16) / 116;
+        const fx = a / 500 + fy;
+        const fz = fy - b / 200;
+
+        const e = 216 / 24389;
+        const k = 24389 / 27;
+
+        let x = fx ** 3 > e ? fx ** 3 : (116 * fx - 16) / k;
+        let y = l > e * k ? fy ** 3 : l / k;
+        let z = fz ** 3 > e ? fz ** 3 : (116 * fz - 16) / k;
+
+        x *= 0.950489;
+        y *= 1.0;
+        z *= 1.08884;
+
+        return [
+          x * 3.2406 + y * -1.5372 + z * -0.4986,
+          x * -0.9689 + y * 1.8758 + z * 0.0415,
+          x * 0.0557 + y * -0.204 + z * 1.057,
+        ]
+          .map((c) => {
+            const clamped = Math.max(0, Math.min(1, c));
+            const srgb =
+              clamped <= 0.0031308
+                ? 12.92 * clamped
+                : 1.055 * clamped ** (1 / 2.4) - 0.055;
+
+            return Math.round(srgb * 255);
+          })
+          .map((v) => v.toString(16).padStart(2, "0"))
+          .join("");
+      };
+
+      const lerpLab = (t, one, two) => [
+        one[0] + t * (two[0] - one[0]),
+        one[1] + t * (two[1] - one[1]),
+        one[2] + t * (two[2] - one[2]),
+      ];
+
+      const generateAndCopy = () => {
+        const scheme = {};
+
+        for (const line of ta.value.split("\n")) {
+          if (line.includes(":")) {
+            let [key, value, ..._] = line.split(":");
+
+            if (key.startsWith("base")) {
+              value = value.replace(/['" ]/g, "");
+            } else {
+              value = value.trim();
+            }
+
+            scheme[key.toLowerCase()] = value;
+          }
+        }
+
+        console.log(scheme);
+
+        const palette = [
+          scheme["base00"],
+          scheme["base08"],
+          scheme["base0b"],
+          scheme["base0a"],
+          scheme["base0d"],
+          scheme["base0e"],
+          scheme["base0c"],
+          scheme["base05"],
+          scheme["base03"],
+          scheme["base08"],
+          scheme["base0b"],
+          scheme["base0a"],
+          scheme["base0d"],
+          scheme["base0e"],
+          scheme["base0c"],
+          scheme["base07"],
+        ];
+
+        console.log(palette);
+
+        const base8 = palette.map(hexToLab);
+        const bg = base8[0];
+        const fg = base8[7];
+
+        for (let r = 0; r < 6; r++) {
+          let c0 = lerpLab(r / 5, bg, base8[1]);
+          let c1 = lerpLab(r / 5, base8[2], base8[3]);
+          let c2 = lerpLab(r / 5, base8[4], base8[5]);
+          let c3 = lerpLab(r / 5, base8[6], base8[7]);
+
+          for (let g = 0; g < 6; g++) {
+            let c4 = lerpLab(g / 5, c0, c1);
+            let c5 = lerpLab(g / 5, c2, c3);
+
+            for (let b = 0; b < 6; b++) {
+              let c6 = lerpLab(b / 5, c4, c5);
+
+              palette.push(labToHex(c6));
+            }
+          }
+        }
+
+        for (let i = 0; i < 24; i++) {
+          let t = (i + 1) / 25;
+          let lab = lerpLab(t, bg, fg);
+          palette.push(labToHex(lab));
+        }
+
+        let configOutput = `# Base16 ${scheme["scheme"]} 256 - alacritty color config
+# ${scheme["author"]}
+
+[colors.primary]
+background = '0x${palette[0]}'
+foreground = '0x${palette[7]}'
+
+[colors.cursor]
+text = '0x${palette[0]}'
+cursor = '0x${palette[7]}'
+
+[colors.normal]
+black = '0x${palette[0]}'
+red = '0x${palette[1]}'
+green = '0x${palette[2]}'
+yellow = '0x${palette[3]}'
+blue = '0x${palette[4]}'
+magenta = '0x${palette[5]}'
+cyan = '0x${palette[6]}'
+white = '0x${palette[7]}'
+
+[colors.bright]
+black = '0x${palette[8]}'
+red = '0x${palette[9]}'
+green = '0x${palette[10]}'
+yellow = '0x${palette[11]}'
+blue = '0x${palette[12]}'
+magenta = '0x${palette[13]}'
+cyan = '0x${palette[14]}'
+white = '0x${palette[15]}
+`;
+
+        for (let i = 16; i < palette.length; i++) {
+          configOutput += `\n[[colors.indexed_colors]]\nindex = ${i}\ncolor = "0x${palette[i]}"`;
+        }
+
+        console.log(configOutput);
+
+        navigator.clipboard
+          .writeText(configOutput)
+          .then(() => console.log("Config copied to clipboard!"))
+          .catch((err) => console.error("Clipboard copy failed: ", err));
+      };
+
+      document
+        .querySelector("#copy")
+        .addEventListener("click", generateAndCopy);
+    </script>
+  </body>
+</html>
